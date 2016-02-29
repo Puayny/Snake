@@ -1,0 +1,300 @@
+<!DOCTYPE html>
+
+<html>
+    <head>
+        <title>Snake</title>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    </head>
+    <body>
+        <button id="reset" onclick="runGame()">Reset game</button>
+        <span id="score">Score: 0</span>
+        <span id="highScore">High score: 0</span>
+        <br><br>
+        <canvas id="mainGameCanvas" width="600" height="600" style="border:1px solid black"></canvas>
+
+        <script>
+            //canvas element
+            var mainGameCanvas = document.getElementById("mainGameCanvas");
+            var gameCanvasWidth = mainGameCanvas.width;
+            var gameCanvasHeight = mainGameCanvas.height;
+            var gameCanvas = mainGameCanvas.getContext("2d");
+            //snake positions, initial (for resetting) and current
+            var initialPos = [[19, 20], [20, 20], [21, 20]];
+            var currentPos = []
+            //snake vars, for drawing snake
+            var snakePixelWidth = 13;
+            var gridPixelWidth = 15;
+            var snakeBorderWidth = (gridPixelWidth - snakePixelWidth) / 2;
+            //snake movement
+            var snakeDirection = null;
+            var prevSnakeDirection = null;
+            //food
+            var foodCoord = null;
+            //score
+            var highScore = 0;
+            var score = 0;
+            //test whether game is over
+            var isGameover = false;
+
+            runGame();
+
+            function runGame() {
+                resetGame();
+                startDetectingKeyPress();
+                startGame();
+                
+                //where the main game runs
+                function startGame() {
+                    //every 100ms, update the game
+                    var moveInterval = setInterval(function () { snakeMovement(); }, 50);
+
+                    var ateFood = false;
+                    var hasCollided = false;
+                    
+                    //snakeHead refers to first pixel of the snake
+                    //snakeTail refers to the last pixel of the snake
+                    //we ignore the rest of the pixels because in every timeframe,
+                    //only the head and/or tail will change position
+                    function snakeMovement() {
+                        removeWelcomeText();
+                        updateSnakeHeadPos();
+                        //oldSnakeTailPos used to remove previous tail pixel from screen later on
+                        var oldSnakeTailPos = updateSnakeTailPos();
+                        //if ateFood, snake will grow
+                        ateFood = checkSnakeAteFood();
+                        //hasCollided will tell us whether to end the game here or continue to next timeframe
+                        hasCollided = checkCollision();
+                        if (hasCollided) {
+                            clearInterval(moveInterval);
+                            gameOver();
+                        } else {
+                            updateSnakeTailGraphics(oldSnakeTailPos);
+                            updateSnakeHeadGraphics();
+                        }
+                    }
+
+                    //remove welcome text once game start. only want to run this function once per reset
+                    function removeWelcomeText() {
+                        if (snakeDirection !== null) {
+                            removeWelcomeText = function () {}; //del function once run
+                            //delete text
+                            gameCanvas.fillStyle = "white";
+                            gameCanvas.fillRect(50, 100, 500, 150);
+                            //fill in food again in case it was deleted along with the text
+                            gameCanvas.fillStyle = "red";
+                            gameCanvas.fillRect(foodCoord[0] * gridPixelWidth + snakeBorderWidth, 
+                                foodCoord[1] * gridPixelWidth + snakeBorderWidth, snakePixelWidth, snakePixelWidth);
+                        }
+                    }
+
+                    //update head pos depending on last arrow key pressed
+                    function updateSnakeHeadPos() {
+                        //edit current pos array
+                        var snakeHeadPos = currentPos[currentPos.length - 1];
+                        switch (snakeDirection) {
+                            case "up":
+                                currentPos.push([snakeHeadPos[0], snakeHeadPos[1] - 1]);
+                                prevSnakeDirection = "up";
+                                break;
+                            case "down":
+                                currentPos.push([snakeHeadPos[0], snakeHeadPos[1] + 1]);
+                                prevSnakeDirection = "down";
+                                break;
+                            case "left":
+                                currentPos.push([snakeHeadPos[0] - 1, snakeHeadPos[1]]);
+                                prevSnakeDirection = "left";
+                                break;
+                            case "right":
+                                currentPos.push([snakeHeadPos[0] + 1, snakeHeadPos[1]]);
+                                prevSnakeDirection = "right";
+                                break;
+                        }
+                    }
+                    //update snake head graphics. Only need to update 2 parts of the snake. 
+                    //Old head change to black, new head change to green.
+                    function updateSnakeHeadGraphics() {
+                        var currentPosLength = currentPos.length;
+                        gameCanvas.fillStyle = "green";
+                        gameCanvas.fillRect(currentPos[currentPosLength - 1][0] * gridPixelWidth + snakeBorderWidth, 
+                            currentPos[currentPosLength - 1][1] * gridPixelWidth + snakeBorderWidth, snakePixelWidth, snakePixelWidth);
+                        gameCanvas.fillStyle = "gray";
+                        gameCanvas.fillRect(currentPos[currentPosLength - 2][0] * gridPixelWidth + snakeBorderWidth, 
+                            currentPos[currentPosLength - 2][1] * gridPixelWidth + snakeBorderWidth, snakePixelWidth, snakePixelWidth);
+                    }
+                    //check whether snake ate food. If yes, add food somewhere else, and return true
+                    function checkSnakeAteFood() {
+                        //if food is null (just resetted game), create food
+                        if (foodCoord === null) {
+                            genAndDisplayNewFood();
+                        }
+                        //check if snake eating food. update score and create new food accordingly.
+                        var snakeHeadPos = currentPos[currentPos.length - 1];
+                        if (snakeHeadPos[0] === foodCoord[0] && snakeHeadPos[1] === foodCoord[1]) {
+                            score += 1;
+                            document.getElementById("score").innerHTML = "Score: " + score;
+                            genAndDisplayNewFood();
+                            return true;
+                        }
+                        return false;
+                    }
+
+                    //generate new food, ensuring food doesn't already lie on the snake
+                    //NOTE: inefficient method, will loop many times when snake is too long
+                    //I'll just leave it as this for the purposes of this demo programme.
+                    function genAndDisplayNewFood() {
+                        //generate new location till it gets a valid location
+                        do {
+                            var foodX = Math.floor(Math.random() * gameCanvasWidth / gridPixelWidth);
+                            var foodY = Math.floor(Math.random() * gameCanvasHeight / gridPixelWidth);
+                        } while (foodClashSnake());
+                        //check whether food location is valid (i.e. in snake)
+                        function foodClashSnake() {
+                            for (i in currentPos) {
+                                if (currentPos[i][0] === foodX && currentPos[i][1] === foodY) {
+                                    return true;
+                                }
+                            }
+                            return false;
+                        }
+                        //draw food
+                        gameCanvas.fillStyle = "red";
+                        gameCanvas.fillRect(foodX * gridPixelWidth + snakeBorderWidth, 
+                            foodY * gridPixelWidth + snakeBorderWidth, snakePixelWidth, snakePixelWidth);
+                        foodCoord = [foodX, foodY];
+                    }
+                    //check for collision with walls and snake. If collided, end movement and call gameover.
+                    function checkCollision() {
+                        var currentPosLength = currentPos.length;
+                        var headPos = currentPos[currentPosLength - 1];
+                        //check collision with itself
+                        for (var i = 0; i < currentPosLength - 1; i++) {
+                            if (headPos[0] === currentPos[i][0] && headPos[1] === currentPos[i][1]) {
+                                return true;
+                            }
+                        }
+                        //check collision with wall
+                        if (headPos[0] < 0 || headPos[0] > gameCanvasWidth / gridPixelWidth - 1 || 
+                                headPos[1] < 0 || headPos[1] > gameCanvasHeight / gridPixelWidth - 1) {
+                            return true;
+                        }
+                        return false;
+                    }
+                    //Update position of snake's tail
+                    //Remove position of tail and return it, unless food eaten
+                    //If ate food, snake grows, no need to remove tail
+                    function updateSnakeTailPos() {
+                        if (snakeDirection !== null && ateFood === false) {
+                            return currentPos.shift();
+                        }
+                        return null;
+                    }
+                    //update graphics of snake's tail
+                    //change the pixel tail is on to white, unless food eaten
+                    function updateSnakeTailGraphics(oldSnakeTailPos) {
+                        if (oldSnakeTailPos !== null && (oldSnakeTailPos[0] !== foodCoord[0] || oldSnakeTailPos[1] !== foodCoord[1])) {
+                            gameCanvas.fillStyle = "white";
+                            gameCanvas.fillRect(oldSnakeTailPos[0] * gridPixelWidth + snakeBorderWidth, 
+                                oldSnakeTailPos[1] * gridPixelWidth + snakeBorderWidth, snakePixelWidth, snakePixelWidth);
+                        }
+                    }
+                    //Gameover. Check for highscore, edit highscore accordingly, and display gameover text
+                    function gameOver() {
+                        isGameover = true;
+                        var scoreText = "Score: ";
+                        if (highScore < score) {
+                            highScore = score;
+                            scoreText = "Congrats, new high score: ";
+                            document.getElementById("highScore").innerHTML = "High score: " + highScore;
+                        }
+                        gameCanvas.fillStyle = "black";
+                        gameCanvas.fillText("Gameover! " + scoreText + score, mainGameCanvas.width / 2, mainGameCanvas.height / 3);
+                        gameCanvas.fillText("Press space to restart", mainGameCanvas.width / 2, mainGameCanvas.height / 2.5);
+                    }
+                }
+
+                //detect which arrow key is being pressed
+                function startDetectingKeyPress() {
+                    document.onkeydown = function () {
+                        switch (event.keyCode) {
+                            case 38:
+                                if (prevSnakeDirection !== "down") {
+                                    snakeDirection = "up";
+                                }
+                                break;
+                            case 40:
+                                if (prevSnakeDirection !== "up") {
+                                    snakeDirection = "down";
+                                }
+                                break;
+                            case 39:
+                                if (prevSnakeDirection !== "left") {
+                                    snakeDirection = "right";
+                                }
+                                break;
+                            case 37:
+                                //second part of if statement to prevent snake from 
+                                //moving left initially, right after resetting
+                                if (prevSnakeDirection !== "right" && prevSnakeDirection !== null) {
+                                    snakeDirection = "left";
+                                }
+                                break;
+                            case 32: //At gameover, press spacebar to reset game
+                                if (isGameover) {
+                                    runGame();
+                                }
+                                break;
+                        }
+                    };
+                }
+
+                //reset game canvas
+                function resetGame() {
+                    gameCanvas.fillStyle = "white";
+                    gameCanvas.fillRect(0, 0, gameCanvasWidth, gameCanvasHeight);
+                    resetScoreLabel();
+                    resetVariables();
+                    drawInitialSnake();
+                    writeWelcomeText();
+                    //reset score label to 0
+                    function resetScoreLabel() {
+                        document.getElementById("score").innerHTML = "Score: 0";
+                    }
+                    //reset variables to initial values
+                    function resetVariables() {
+                        currentPos = [];
+                        for (i in initialPos) {
+                            currentPos[i] = initialPos[i];
+                        }
+                        snakeDirection = null;
+                        prevSnakeDirection = null;
+                        foodCoord = null;
+                        score = 0;
+                        isGameover = false;
+                    }
+                    //write welcome text on game canvas
+                    function writeWelcomeText() {
+                        gameCanvas.fillStyle = "black";
+                        gameCanvas.font = "30px Calibri";
+                        gameCanvas.textAlign = "center";
+                        gameCanvas.fillText("Welcome! Press any arrow key to start!", mainGameCanvas.width / 2, mainGameCanvas.height / 3);
+                    }
+                    //draw initial snake
+                    function drawInitialSnake() {
+                        var currentPosLength = currentPos.length;
+                        for (var i = 0; i < currentPosLength - 1; i++) {
+                            gameCanvas.fillStyle = "grey";
+                            gameCanvas.fillRect(currentPos[i][0] * gridPixelWidth + snakeBorderWidth, 
+                                currentPos[i][1] * gridPixelWidth + snakeBorderWidth, snakePixelWidth, snakePixelWidth);
+                        }
+                        gameCanvas.fillStyle = "green";
+                        gameCanvas.fillRect(currentPos[currentPosLength - 1][0] * gridPixelWidth + snakeBorderWidth, 
+                            currentPos[currentPosLength - 1][1] * gridPixelWidth + snakeBorderWidth, snakePixelWidth, snakePixelWidth);
+                    }
+                }
+            }
+
+        </script>
+
+    </body>
+</html>
