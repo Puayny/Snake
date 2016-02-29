@@ -1,1 +1,2 @@
 # Snake
+Javascript snake game
