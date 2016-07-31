@@ -11,7 +11,7 @@
         <span id="score">Score: 0</span>
         <span id="highScore">High score: 0</span>
         <br><br>
-        <canvas id="mainGameCanvas" width="600" height="600" style="border:1px solid black"></canvas>
+        <canvas id="mainGameCanvas" width="520" height="520" style="border:1px solid black"></canvas>
 
         <script>
             //canvas element
@@ -23,8 +23,8 @@
             var initialPos = [[19, 20], [20, 20], [21, 20]];
             var currentPos = []
             //snake vars, for drawing snake
-            var snakePixelWidth = 13;
-            var gridPixelWidth = 15;
+            var snakePixelWidth = 11;
+            var gridPixelWidth = 13;
             var snakeBorderWidth = (gridPixelWidth - snakePixelWidth) / 2;
             //snake movement
             var snakeDirection = null;
@@ -80,7 +80,7 @@
                             removeWelcomeText = function () {}; //del function once run
                             //delete text
                             gameCanvas.fillStyle = "white";
-                            gameCanvas.fillRect(50, 100, 500, 150);
+                            gameCanvas.fillRect(0, 100, 520, 150);
                             //fill in food again in case it was deleted along with the text
                             gameCanvas.fillStyle = "red";
                             gameCanvas.fillRect(foodCoord[0] * gridPixelWidth + snakeBorderWidth, 
@@ -209,7 +209,7 @@
                         }
                         gameCanvas.fillStyle = "black";
                         gameCanvas.fillText("Gameover! " + scoreText + score, mainGameCanvas.width / 2, mainGameCanvas.height / 3);
-                        gameCanvas.fillText("Press space to restart", mainGameCanvas.width / 2, mainGameCanvas.height / 2.5);
+                        gameCanvas.fillText("Press space to restart.", mainGameCanvas.width / 2, mainGameCanvas.height / 2.5);
                     }
                 }
 
