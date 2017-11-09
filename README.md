@@ -1,4 +1,4 @@
 # Snake
 Javascript snake game
 
-Try it at http://pnydemosnake.neocities.org/
+To try it, just download snake.html and open it in a browser.
